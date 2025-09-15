@@ -9,7 +9,7 @@ func NewRouter() *gin.Engine {
 	api := router.Group("/api")
 	{
 		api.POST("/shorten", shortenURLHandler)
-
+		api.GET("/metrics", metricsHandler)
 	}
 	router.GET("/:backhalf", redirectHandler)
 

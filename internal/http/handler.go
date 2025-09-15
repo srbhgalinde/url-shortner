@@ -3,7 +3,9 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -17,6 +19,8 @@ const (
 var (
 	urlStore           = make(map[string]string) // backhalf -> originalURL
 	reverseStore       = make(map[string]string) // originalURL -> backhalf
+	metricsStore       = make(map[string]int)    // Domain -> Count
+	metricsMu          sync.Mutex                // for concurrent RW metricsStore
 	validBackhalfRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]`)
 )
 
@@ -36,6 +40,17 @@ func shortenURLHandler(c *gin.Context) {
 		})
 		return
 	}
+
+	parsedURL := req.URL
+	if !regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+\-.]*://`).MatchString(parsedURL) {
+		parsedURL = "http://" + parsedURL
+	}
+	parsed, err := url.Parse(parsedURL)
+	if err != nil || parsed.Host == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL - Host parsing issue"})
+		return
+	}
+	domain := parsed.Host
 
 	// Eles, generate new backhalf
 	backhalf := req.Backhalf
@@ -65,6 +80,7 @@ func shortenURLHandler(c *gin.Context) {
 		"shortUrl": shortURL,
 		"backhalf": backhalf,
 	})
+	go updateDomainMetrics(domain)
 }
 
 func redirectHandler(c *gin.Context) {
@@ -78,4 +94,18 @@ func redirectHandler(c *gin.Context) {
 
 	// Redirect to orignal url
 	c.Redirect(http.StatusFound, originalURL)
+}
+
+func metricsHandler(c *gin.Context) {
+	if len(metricsStore) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "No URLs shortened",
+		})
+	}
+	topDomains := getTopDomains(3)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Top 3 domains",
+		"data":    topDomains,
+	})
+
 }
