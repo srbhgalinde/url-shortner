@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/srbhgalinde/url-shortner/internal/http"
 )
@@ -9,8 +10,11 @@ import (
 func main() {
 	router := http.NewRouter()
 
-	// portno:=getenv()
-	portno := ":8080"
+	portno := os.Getenv("PORT")
+	if portno == "" {
+		portno = ":8080"
+	}
+
 	log.Println("Server running on port ", portno)
 	if err := router.Run(portno); err != nil {
 		log.Fatal(err)

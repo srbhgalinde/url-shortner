@@ -12,11 +12,8 @@ import (
 	"github.com/srbhgalinde/url-shortner/internal/models"
 )
 
-const (
-	Baseurl = "http://localhost:8080/"
-)
-
 var (
+	Baseurl            = getBaseURL()
 	urlStore           = make(map[string]string) // backhalf -> originalURL
 	reverseStore       = make(map[string]string) // originalURL -> backhalf
 	metricsStore       = make(map[string]int)    // Domain -> Count

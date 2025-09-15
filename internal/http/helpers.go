@@ -1,6 +1,10 @@
 package http
 
-import "sort"
+import (
+	"log"
+	"os"
+	"sort"
+)
 
 func updateDomainMetrics(domain string) {
 	metricsMu.Lock()
@@ -45,4 +49,12 @@ func getTopDomains(n int) []map[string]any {
 		})
 	}
 	return result
+}
+
+func getBaseURL() string {
+	if val := os.Getenv("BASE_URL"); val != "" {
+		log.Fatal("BASE_URL is Missing")
+		return val
+	}
+	return "http://localhost:8080"
 }
