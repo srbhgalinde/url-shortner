@@ -3,6 +3,7 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,8 +15,9 @@ const (
 )
 
 var (
-	urlStore     = make(map[string]string) // backhalf -> originalURL
-	reverseStore = make(map[string]string) // originalURL -> backhalf
+	urlStore           = make(map[string]string) // backhalf -> originalURL
+	reverseStore       = make(map[string]string) // originalURL -> backhalf
+	validBackhalfRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]`)
 )
 
 func shortenURLHandler(c *gin.Context) {
@@ -27,7 +29,7 @@ func shortenURLHandler(c *gin.Context) {
 
 	// If URL was already shortened, return respective backhalf
 	if existing, ok := reverseStore[req.URL]; ok {
-		shortURL := fmt.Sprintf("%s/%s", Baseurl, existing)
+		shortURL := fmt.Sprintf("%s%s", Baseurl, existing)
 		c.JSON(http.StatusOK, gin.H{
 			"shortUrl": shortURL,
 			"backhalf": existing,
@@ -35,15 +37,22 @@ func shortenURLHandler(c *gin.Context) {
 		return
 	}
 
-	// eles, generate new backhalf
+	// Eles, generate new backhalf
 	backhalf := req.Backhalf
 	if backhalf == "" {
 		backhalf = uuid.New().String()[:8]
+	} else {
+		// Sanitize backhalf
+		backhalf = validBackhalfRegex.ReplaceAllString(backhalf, "")
+		if backhalf == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid backhalf"})
+			return
+		}
 	}
 
 	// Ensure backhalf is unique
 	if _, exists := urlStore[backhalf]; exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "backhalf already taken"})
+		c.JSON(http.StatusConflict, gin.H{"error": "Backhalf already taken"})
 		return
 	}
 
@@ -51,7 +60,7 @@ func shortenURLHandler(c *gin.Context) {
 	urlStore[backhalf] = req.URL
 	reverseStore[req.URL] = backhalf
 
-	shortURL := fmt.Sprintf("%s/%s", Baseurl, backhalf)
+	shortURL := fmt.Sprintf("%s%s", Baseurl, backhalf)
 	c.JSON(http.StatusCreated, gin.H{
 		"shortUrl": shortURL,
 		"backhalf": backhalf,
@@ -61,13 +70,12 @@ func shortenURLHandler(c *gin.Context) {
 func redirectHandler(c *gin.Context) {
 	backhalf := c.Param("backhalf")
 
-	// Lookup original URL
 	originalURL, exists := urlStore[backhalf]
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "short URL not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
 		return
 	}
 
-	// Redirect with 302 status to orignal url
+	// Redirect to orignal url
 	c.Redirect(http.StatusFound, originalURL)
 }
