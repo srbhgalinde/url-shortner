@@ -1,8 +1,13 @@
 package utils
 
+import "os"
+
 // common functions here
 
 // Get env variables
-func Getenv() {
-	// os.get
+func GetEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
 }
