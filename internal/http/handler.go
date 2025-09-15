@@ -57,3 +57,17 @@ func shortenURLHandler(c *gin.Context) {
 		"backhalf": backhalf,
 	})
 }
+
+func redirectHandler(c *gin.Context) {
+	backhalf := c.Param("backhalf")
+
+	// Lookup original URL
+	originalURL, exists := urlStore[backhalf]
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "short URL not found"})
+		return
+	}
+
+	// Redirect with 302 status to orignal url
+	c.Redirect(http.StatusFound, originalURL)
+}

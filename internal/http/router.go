@@ -11,6 +11,7 @@ func NewRouter() *gin.Engine {
 		api.POST("/shorten", shortenURLHandler)
 
 	}
+	router.GET("/:backhalf", redirectHandler)
 
 	return router
 }
